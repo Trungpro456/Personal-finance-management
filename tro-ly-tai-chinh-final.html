@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trợ Lý Tài Chính Cá Nhân</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: #f0f2f5;
+        }
+        .main-content {
+            padding-bottom: 80px;
+        }
+        .bottom-nav {
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+        .nav-item.active svg, .nav-item.active p {
+            color: #4A69BD;
+            font-weight: 600;
+        }
+        .fab {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            z-index: 40;
+            transition: transform 0.3s ease;
+        }
+        .fab:hover {
+            transform: scale(1.1);
+        }
+        .modal-overlay {
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            transition: transform 0.3s ease;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            margin: auto;
+            height: 40vh;
+            max-height: 400px;
+        }
+        .category-item {
+            transition: transform 0.2s ease;
+        }
+        .category-item:hover {
+            transform: scale(1.1);
+        }
+        .input-wrapper {
+            position: relative;
+        }
+        .input-unit {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+            pointer-events: none; /* Make unit non-interactive */
+        }
+        .input-field {
+            padding-right: 3.5rem !important; /* Ensure space for unit */
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4A69BD;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .scrollable-area {
+            max-height: 45vh;
+            overflow-y: auto;
+            padding-right: 8px;
+            scrollbar-width: thin;
+            scrollbar-color: #A9A9A9 #f0f2f5;
+        }
+        .scrollable-area::-webkit-scrollbar {
+            width: 8px;
+        }
+        .scrollable-area::-webkit-scrollbar-track {
+            background: #f0f2f5;
+            border-radius: 10px;
+        }
+        .scrollable-area::-webkit-scrollbar-thumb {
+            background-color: #A9A9A9;
+            border-radius: 10px;
+            border: 2px solid #f0f2f5;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="container mx-auto max-w-2xl main-content p-4">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-4 sticky top-0 bg-f0f2f5/80 backdrop-blur-sm py-2 z-10">
+            <button id="prev-month-btn" class="p-2 rounded-full hover:bg-gray-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <h1 id="month-display" class="text-xl font-bold text-center"></h1>
+            <button id="next-month-btn" class="p-2 rounded-full hover:bg-gray-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </button>
+        </header>
+
+        <!-- Main Content Views -->
+        <main>
+            <!-- Trang Chính View -->
+            <div id="view-trang-chinh">
+                <div class="bg-white rounded-xl shadow-md p-4 mb-6">
+                    <p class="text-sm text-gray-500">Số dư tháng này</p>
+                    <p id="balance-display" class="text-3xl font-bold mt-1">0đ</p>
+                    <div class="flex justify-between mt-4 text-center">
+                        <div>
+                            <p class="text-sm text-gray-500 flex items-center"><span class="w-3 h-3 rounded-full bg-green-500 mr-2"></span>Tổng thu</p>
+                            <p id="income-display" class="font-semibold text-green-600">0đ</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 flex items-center"><span class="w-3 h-3 rounded-full bg-red-500 mr-2"></span>Tổng chi</p>
+                            <p id="expense-display" class="font-semibold text-red-600">0đ</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <h2 class="font-bold text-lg mb-2">Giao dịch gần đây</h2>
+                <div id="transaction-list" class="space-y-3 scrollable-area"></div>
+            </div>
+            
+            <!-- Chi Tiết View -->
+            <div id="view-chi-tiet" class="hidden space-y-4">
+                <div class="bg-white rounded-xl shadow-md p-4">
+                    <label for="day-filter" class="font-semibold text-gray-700">Chọn ngày để xem chi tiết:</label>
+                    <select id="day-filter" class="w-full mt-2 p-3 border rounded-lg bg-gray-50"></select>
+                </div>
+                 <div id="detailed-transaction-list" class="space-y-3 scrollable-area"></div>
+            </div>
+
+            <!-- Phân Tích View -->
+            <div id="view-phan-tich" class="hidden space-y-6">
+                 <div class="bg-white rounded-xl shadow-md p-4">
+                    <h3 class="font-bold text-center mb-2">Phân bổ chi tiêu</h3>
+                    <div class="chart-container" style="max-width: 300px;"><canvas id="expense-pie-chart"></canvas></div>
+                 </div>
+                 <div class="bg-white rounded-xl shadow-md p-4">
+                    <h3 class="font-bold text-center mb-2">Chi tiêu và Hạn mức</h3>
+                    <div class="chart-container"><canvas id="budget-bar-chart"></canvas></div>
+                 </div>
+                 <div class="bg-white rounded-xl shadow-md p-4">
+                    <h3 class="font-bold text-center mb-2">Báo cáo & Gợi ý Thông minh</h3>
+                    <div id="insights-container" class="text-center p-2">
+                        <div class="mb-4">
+                            <label for="gemini-api-key" class="block text-sm font-medium text-gray-700 text-left">Gemini API Key của bạn</label>
+                            <input type="password" id="gemini-api-key" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Dán API Key của bạn vào đây">
+                            <p class="text-xs text-gray-500 mt-1 text-left">API Key sẽ được lưu trên trình duyệt của bạn.</p>
+                        </div>
+                        <button id="generate-insights-btn" class="bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">
+                            ✨ Tạo Phân Tích
+                        </button>
+                        <div id="insights-loader" class="hidden loader"></div>
+                        <div id="insights-report" class="text-sm space-y-3 text-gray-600 mt-4 text-left"></div>
+                    </div>
+                 </div>
+            </div>
+
+            <!-- Hạn Mức View -->
+            <div id="view-han-muc" class="hidden">
+                 <div class="bg-white rounded-xl shadow-md p-4">
+                    <h3 id="budget-form-title" class="font-bold mb-4">Đặt Hạn Mức Mới</h3>
+                    <form id="budget-form" class="space-y-4">
+                        <input type="hidden" id="budget-category-value">
+                        <div id="budget-category-selector-display" class="w-full p-3 border rounded-lg bg-gray-50 text-gray-500 cursor-pointer flex items-center">
+                            <span id="budget-category-icon-display" class="mr-2"></span>
+                            <span id="budget-category-name-display">Chọn hạng mục chi tiêu</span>
+                        </div>
+                        <div id="budget-category-picker" class="hidden p-2 bg-gray-50 rounded-lg">
+                            <div id="budget-category-grid" class="grid grid-cols-4 gap-2 text-center"></div>
+                        </div>
+                        <div class="input-wrapper">
+                            <input type="number" id="budget-limit" placeholder="0" class="w-full p-3 border rounded-lg bg-gray-50 text-right input-field" required>
+                            <span class="input-unit">VNĐ</span>
+                        </div>
+                        <div class="flex gap-2 justify-center">
+                            <button type="button" class="budget-amount-suggestion-btn flex-1 bg-gray-200 text-sm py-1 rounded-md">+100k</button>
+                            <button type="button" class="budget-amount-suggestion-btn flex-1 bg-gray-200 text-sm py-1 rounded-md">+500k</button>
+                            <button type="button" class="budget-amount-suggestion-btn flex-1 bg-gray-200 text-sm py-1 rounded-md">+1M</button>
+                            <button type="button" class="budget-amount-suggestion-btn flex-1 bg-gray-200 text-sm py-1 rounded-md">000</button>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700">Lưu Hạn Mức</button>
+                        <button type="button" id="cancel-edit-budget-btn" class="w-full bg-gray-200 text-gray-800 font-bold py-3 rounded-lg hover:bg-gray-300 hidden">Hủy</button>
+                    </form>
+                    <hr class="my-6">
+                    <h3 class="font-bold mb-4">Các Hạn Mức Đã Đặt</h3>
+                    <div id="budget-list" class="space-y-3 scrollable-area"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Floating Action Button -->
+    <button id="add-transaction-fab" class="fab bg-blue-600 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+    </button>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav fixed bottom-0 left-0 right-0 bg-white h-16 flex justify-around items-center max-w-2xl mx-auto border-t">
+        <button data-view="trang-chinh" class="nav-item active flex flex-col items-center justify-center text-gray-500 w-full">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+            <p class="text-xs">Trang chính</p>
+        </button>
+        <button data-view="chi-tiet" class="nav-item flex flex-col items-center justify-center text-gray-500 w-full">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+            <p class="text-xs">Chi tiết</p>
+        </button>
+        <button data-view="phan-tich" class="nav-item flex flex-col items-center justify-center text-gray-500 w-full">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+            <p class="text-xs">Phân tích</p>
+        </button>
+        <button data-view="han-muc" class="nav-item flex flex-col items-center justify-center text-gray-500 w-full">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>
+            <p class="text-xs">Hạn mức</p>
+        </button>
+    </nav>
+
+    <!-- Modals -->
+    <div id="transaction-modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 hidden opacity-0">
+        <div class="modal-content bg-white rounded-xl shadow-lg w-full max-w-md p-6 transform -translate-y-10">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="modal-title" class="text-xl font-bold">Thêm Giao Dịch</h2>
+                <button id="close-modal-btn" class="p-1 rounded-full hover:bg-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <form id="transaction-form" class="space-y-4">
+                <input type="hidden" id="transaction-id">
+                <input type="hidden" id="transaction-category-value">
+                <div class="grid grid-cols-2 gap-4">
+                    <button type="button" id="type-income-btn" class="p-3 border rounded-lg font-semibold">Thu nhập</button>
+                    <button type="button" id="type-expense-btn" class="p-3 border rounded-lg font-semibold">Chi tiêu</button>
+                </div>
+                <div id="category-selector-display" class="w-full p-3 border rounded-lg bg-gray-50 text-gray-500 cursor-pointer flex items-center">
+                     <span id="transaction-category-icon-display" class="mr-2"></span>
+                     <span id="transaction-category-name-display">Chọn hạng mục</span>
+                </div>
+                <div id="category-picker" class="hidden p-2 bg-gray-50 rounded-lg">
+                    <div id="category-grid" class="grid grid-cols-4 gap-2 text-center"></div>
+                </div>
+                <div class="input-wrapper">
+                    <input type="number" id="transaction-amount" placeholder="0" class="w-full p-3 border rounded-lg bg-gray-50 text-right input-field" required>
+                    <span class="input-unit">VNĐ</span>
+                </div>
+                <div class="flex gap-2 justify-center">
+                    <button type="button" class="amount-suggestion-btn flex-1 bg-gray-200 text-sm py-1 rounded-md">+10k</button>
+                    <button type="button" class="amount-suggestion-btn flex-1 bg-gray-200 text-sm py-1 rounded-md">+50k</button>
+                    <button type="button" class="amount-suggestion-btn flex-1 bg-gray-200 text-sm py-1 rounded-md">+100k</button>
+                    <button type="button" class="amount-suggestion-btn flex-1 bg-gray-200 text-sm py-1 rounded-md">000</button>
+                </div>
+                 <input type="date" id="transaction-date" class="w-full p-3 border rounded-lg bg-gray-50" required>
+                 <input type="text" id="transaction-note" placeholder="Ghi chú (Không bắt buộc)" class="w-full p-3 border rounded-lg bg-gray-50">
+                <button type="submit" id="save-transaction-btn" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700">Lưu</button>
+            </form>
+        </div>
+    </div>
+    <div id="confirm-modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 hidden opacity-0">
+        <div class="modal-content bg-white rounded-xl shadow-lg w-full max-w-sm p-6 text-center transform -translate-y-10">
+             <h3 id="confirm-title" class="font-bold text-lg mb-2">Xác nhận Xóa</h3>
+             <p id="confirm-message" class="text-gray-600 mb-6">Bạn có chắc chắn muốn xóa mục này không? Hành động này không thể hoàn tác.</p>
+             <div class="flex justify-center gap-4">
+                <button id="cancel-delete-btn" class="px-6 py-2 rounded-lg border">Hủy bỏ</button>
+                <button id="confirm-delete-btn" class="px-6 py-2 rounded-lg bg-red-600 text-white font-semibold">Xóa</button>
+             </div>
+        </div>
+    </div>
+    
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // STATE & CONFIG
+    let transactions = [];
+    let budgets = {};
+    let selectedDate = new Date();
+    let currentView = 'trang-chinh';
+    let editingTransactionId = null;
+    let itemToDelete = { type: null, key: null };
+    let pieChart, barChart;
+
+    const categories = [
+        { name: 'Ăn uống', icon: '🍔', type: 'expense' }, { name: 'Hóa đơn', icon: '🧾', type: 'expense' },
+        { name: 'Mua sắm', icon: '🛍️', type: 'expense' }, { name: 'Đi lại', icon: '🚗', type: 'expense' },
+        { name: 'Giải trí', icon: '🎬', type: 'expense' }, { name: 'Sức khỏe', icon: '❤️', type: 'expense' },
+        { name: 'Giáo dục', icon: '📚', type: 'expense' }, { name: 'Nhà cửa', icon: '🏠', type: 'expense' },
+        { name: 'Bạn bè', icon: '🧑‍🤝‍🧑', type: 'expense' }, { name: 'Khác', icon: '📁', type: 'expense' },
+        { name: 'Lương', icon: '💰', type: 'income' }, { name: 'Thưởng', icon: '🎁', type: 'income' },
+        { name: 'Đầu tư', icon: '📈', type: 'income' }, { name: 'Thu nhập phụ', icon: '💸', type: 'income' },
+    ];
+
+    // DOM ELEMENTS
+    const views = {
+        'trang-chinh': document.getElementById('view-trang-chinh'),
+        'chi-tiet': document.getElementById('view-chi-tiet'),
+        'phan-tich': document.getElementById('view-phan-tich'),
+        'han-muc': document.getElementById('view-han-muc')
+    };
+    const navItems = document.querySelectorAll('.nav-item');
+    const dayFilter = document.getElementById('day-filter');
+    const detailedTransactionList = document.getElementById('detailed-transaction-list');
+    const monthDisplay = document.getElementById('month-display');
+    const balanceDisplay = document.getElementById('balance-display');
+    const incomeDisplay = document.getElementById('income-display');
+    const expenseDisplay = document.getElementById('expense-display');
+    const transactionList = document.getElementById('transaction-list');
+    const transactionModal = document.getElementById('transaction-modal');
+    const confirmModal = document.getElementById('confirm-modal');
+    const transactionForm = document.getElementById('transaction-form');
+    const insightsContainer = document.getElementById('insights-container');
+    const generateInsightsBtn = document.getElementById('generate-insights-btn');
+    const insightsLoader = document.getElementById('insights-loader');
+    const insightsReport = document.getElementById('insights-report');
+    const geminiApiKeyInput = document.getElementById('gemini-api-key');
+    const budgetList = document.getElementById('budget-list');
+    const budgetForm = document.getElementById('budget-form');
+    
+    // UTILITY FUNCTIONS
+    const formatCurrency = (amount) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    const formatDate = (dateString, options = { day: '2-digit', month: '2-digit' }) => new Date(dateString).toLocaleDateString('vi-VN', options);
+
+    // DATA HANDLING
+    const loadData = () => {
+        transactions = JSON.parse(localStorage.getItem('transactions_v9')) || [];
+        budgets = JSON.parse(localStorage.getItem('budgets_v9')) || {};
+        geminiApiKeyInput.value = localStorage.getItem('geminiApiKey_v9') || '';
+        if (transactions.length === 0) {
+            const today = new Date();
+            transactions = [
+                {id: Date.now() + 1, type: 'income', category: 'Lương', amount: 20000000, date: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`, note: 'Lương tháng'},
+                {id: Date.now() + 2, type: 'expense', category: 'Ăn uống', amount: 250000, date: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-02`, note: 'Ăn tối'},
+                {id: Date.now() + 3, type: 'expense', category: 'Đi lại', amount: 50000, date: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-03`, note: 'Xăng xe'},
+            ];
+            saveData();
+        }
+    };
+    const saveData = () => {
+        localStorage.setItem('transactions_v9', JSON.stringify(transactions));
+        localStorage.setItem('budgets_v9', JSON.stringify(budgets));
+        localStorage.setItem('geminiApiKey_v9', geminiApiKeyInput.value);
+    };
+    
+    // GEMINI API
+    const generateGeminiInsights = async () => {
+        const apiKey = geminiApiKeyInput.value;
+        if (!apiKey) {
+            alert('Vui lòng nhập Gemini API Key của bạn.');
+            return;
+        }
+        saveData(); // Save API key
+
+        insightsReport.innerHTML = '';
+        generateInsightsBtn.style.display = 'none';
+        insightsLoader.style.display = 'block';
+
+        const currentMonthTransactions = transactions.filter(t => new Date(t.date).getFullYear() === selectedDate.getFullYear() && new Date(t.date).getMonth() === selectedDate.getMonth());
+
+        if (currentMonthTransactions.length === 0) {
+            insightsReport.innerHTML = '<p>Không có dữ liệu để phân tích trong tháng này.</p>';
+            insightsLoader.style.display = 'none';
+            generateInsightsBtn.style.display = 'block';
+            return;
+        }
+
+        const totalIncome = currentMonthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+        const totalExpense = currentMonthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+        const transactionSummary = currentMonthTransactions.map(t => `- ${t.type === 'income' ? 'Thu' : 'Chi'} ngày ${formatDate(t.date)}: ${t.category} - ${formatCurrency(t.amount)} (${t.note || 'không ghi chú'})`).join('\n');
+        const systemPrompt = "Bạn là chuyên gia tư vấn tài chính cá nhân. Hãy phân tích dữ liệu thu chi một cách thân thiện, chuyên nghiệp và đưa ra lời khuyên hữu ích, cụ thể. Chia câu trả lời thành các đoạn văn ngắn, dùng **in đậm** cho tiêu đề như 'Tổng quan', 'Điểm sáng ✨', 'Cần chú ý ⚠️', và 'Gợi ý'. Luôn trả lời bằng tiếng Việt.";
+        const userQuery = `Dưới đây là tóm tắt tài chính tháng ${selectedDate.getMonth() + 1}/${selectedDate.getFullYear()}:\n- Tổng thu nhập: ${formatCurrency(totalIncome)}\n- Tổng chi tiêu: ${formatCurrency(totalExpense)}\n\nChi tiết giao dịch:\n${transactionSummary}\n\nHãy phân tích và cho tôi lời khuyên.`;
+        
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+        const payload = { contents: [{ parts: [{ text: userQuery }] }], systemInstruction: { parts: [{ text: systemPrompt }] }, };
+
+        try {
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const result = await response.json();
+            
+            if (!response.ok) {
+                 throw new Error(result.error?.message || `API Error: ${response.status}`);
+            }
+            
+            if (result.candidates && result.candidates.length > 0) {
+                let text = result.candidates[0].content.parts[0].text;
+                text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+                insightsReport.innerHTML = text;
+            } else {
+                 insightsReport.innerHTML = `<p>Rất tiếc, không nhận được phản hồi từ AI. Lỗi: ${result.error?.message || 'Lỗi không xác định'}</p>`;
+            }
+        } catch (error) {
+            console.error('Gemini API call failed:', error);
+            if (error.message.includes('API key not valid')) {
+                 insightsReport.innerHTML = `<p><strong>Lỗi API Key:</strong> Key của bạn không hợp lệ. Vui lòng kiểm tra lại. </p>`;
+            } else if (error.message.includes('Failed to fetch')) {
+                 insightsReport.innerHTML = `<p><strong>Lỗi kết nối:</strong> Không thể gọi API. Bạn có đang chạy ứng dụng trên một máy chủ cục bộ (local server) không? Vui lòng xem lại hướng dẫn trong file README.md.</p>`;
+            }
+            else {
+                insightsReport.innerHTML = `<p>Đã xảy ra lỗi: ${error.message}</p>`;
+            }
+        } finally {
+            insightsLoader.style.display = 'none';
+            generateInsightsBtn.style.display = 'block';
+        }
+    };
+    
+    // RENDER FUNCTIONS
+    const render = () => {
+        const currentMonthTransactions = transactions.filter(t => new Date(t.date).getFullYear() === selectedDate.getFullYear() && new Date(t.date).getMonth() === selectedDate.getMonth());
+        renderHeader();
+        switch (currentView) {
+            case 'trang-chinh':
+                renderSummary(currentMonthTransactions);
+                renderTransactionList(transactionList, [...currentMonthTransactions].sort((a,b) => new Date(b.date) - new Date(a.date)));
+                break;
+            case 'chi-tiet':
+                renderDetailsView(currentMonthTransactions);
+                break;
+            case 'phan-tich':
+                renderAnalysis(currentMonthTransactions);
+                break;
+            case 'han-muc':
+                renderBudgets();
+                break;
+        }
+    };
+    const renderHeader = () => { monthDisplay.textContent = `Tháng ${selectedDate.getMonth() + 1}, ${selectedDate.getFullYear()}`; };
+    const renderSummary = (trans) => {
+        const income = trans.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+        const expense = trans.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+        incomeDisplay.textContent = formatCurrency(income);
+        expenseDisplay.textContent = formatCurrency(expense);
+        balanceDisplay.textContent = formatCurrency(income - expense);
+    };
+    const renderTransactionList = (container, trans) => {
+        container.innerHTML = '';
+        if (trans.length === 0) {
+            container.innerHTML = `<p class="text-center text-gray-500 py-8">Không có giao dịch nào.</p>`;
+            return;
+        }
+        trans.forEach(t => {
+            const isIncome = t.type === 'income';
+            const categoryObj = categories.find(c => c.name === t.category) || { icon: '📁' };
+            const div = document.createElement('div');
+            div.className = 'bg-white rounded-xl shadow-sm p-3 flex items-center';
+            div.innerHTML = `
+                <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xl mr-3 flex-shrink-0">${categoryObj.icon}</div>
+                <div class="flex-grow">
+                    <div class="flex justify-between items-start">
+                        <div><p class="font-semibold">${t.category}</p><p class="text-sm text-gray-500">${formatDate(t.date)} - ${t.note || 'Không có ghi chú'}</p></div>
+                        <p class="font-bold text-right ${isIncome ? 'text-green-600' : 'text-red-600'}">${isIncome ? '+' : '-'}${formatCurrency(t.amount)}</p>
+                    </div>
+                </div>
+                <div class="flex-shrink-0 ml-2 flex items-center gap-1">
+                    <button class="edit-btn p-2 rounded-full hover:bg-gray-200 text-gray-500" data-id="${t.id}" data-type="transaction"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>
+                    <button class="delete-btn p-2 rounded-full hover:bg-gray-200 text-gray-500" data-id="${t.id}" data-type="transaction"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg></button>
+                </div>`;
+            container.appendChild(div);
+        });
+    };
+    const renderDetailsView = (trans) => {
+        dayFilter.innerHTML = '';
+        const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
+        dayFilter.add(new Option("Tất cả các ngày", "all"));
+        for (let i = 1; i <= daysInMonth; i++) {
+            const date = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), i);
+            dayFilter.add(new Option(formatDate(date, { weekday: 'long', day: 'numeric', month: 'numeric' }), i));
+        }
+        const renderFiltered = () => {
+            const day = dayFilter.value;
+            const filtered = day === "all" ? trans : trans.filter(t => new Date(t.date).getDate() == day);
+            renderTransactionList(detailedTransactionList, filtered);
+        };
+        dayFilter.onchange = renderFiltered;
+        renderFiltered();
+    };
+    const renderBudgets = () => {
+        populateCategoryPicker('expense', 'budget-category-grid', name => {
+            updateCategoryDisplay('budget-category', name);
+            document.getElementById('budget-category-picker').classList.add('hidden');
+        });
+        
+        budgetList.innerHTML = '';
+        if (Object.keys(budgets).length === 0) {
+            budgetList.innerHTML = `<p class="text-center text-gray-500 py-4">Chưa có hạn mức nào.</p>`;
+            return;
+        }
+        Object.entries(budgets).forEach(([cat, lim]) => {
+            const div = document.createElement('div');
+            div.className = 'bg-white rounded-xl shadow-sm p-3 flex items-center';
+            div.innerHTML = `
+                <div class="flex-grow">
+                     <p class="font-semibold">${cat}</p>
+                     <p class="text-gray-600">${formatCurrency(lim)}</p>
+                </div>
+                <div class="flex-shrink-0 ml-2 flex items-center gap-1">
+                    <button class="edit-btn p-2 rounded-full hover:bg-gray-200 text-gray-500" data-id="${cat}" data-type="budget"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>
+                    <button class="delete-btn p-2 rounded-full hover:bg-gray-200 text-gray-500" data-id="${cat}" data-type="budget"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg></button>
+                </div>
+            `;
+            budgetList.appendChild(div);
+        });
+    };
+    const renderAnalysis = (trans) => {
+        const expenseData = trans.filter(t => t.type === 'expense').reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + t.amount; return acc; }, {});
+        renderPieChart(expenseData);
+        renderBarChart(expenseData);
+        insightsReport.innerHTML = '';
+        generateInsightsBtn.style.display = 'block';
+        insightsLoader.style.display = 'none';
+    };
+    const renderPieChart = (data) => {
+        const ctx = document.getElementById('expense-pie-chart').getContext('2d');
+        if (pieChart) pieChart.destroy();
+        pieChart = new Chart(ctx, { type: 'doughnut', data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: ['#4A69BD','#78E08F','#F7B731','#FA8231','#EB3B5A','#9A5B4A'], }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+    };
+    const renderBarChart = (data) => {
+        const ctx = document.getElementById('budget-bar-chart').getContext('2d');
+        if (barChart) barChart.destroy();
+        const labels = Object.keys(budgets);
+        barChart = new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: 'Hạn mức', data: labels.map(l => budgets[l]), backgroundColor: '#D1D5DB' }, { label: 'Thực tế', data: labels.map(l => data[l] || 0), backgroundColor: '#4A69BD' }] }, options: { responsive: true, maintainAspectRatio: false } });
+    };
+
+    // UI & EVENT HANDLERS
+    const switchView = (name) => {
+        currentView = name;
+        Object.values(views).forEach(v => v.classList.add('hidden'));
+        views[name].classList.remove('hidden');
+        navItems.forEach(i => i.classList.toggle('active', i.dataset.view === name));
+        render();
+    };
+    const openModal = (t = null) => {
+        transactionForm.reset();
+        document.getElementById('category-picker').classList.add('hidden');
+        editingTransactionId = t ? t.id : null;
+        document.getElementById('modal-title').textContent = t ? 'Sửa Giao Dịch' : 'Thêm Giao Dịch';
+        const type = t ? t.type : 'expense';
+        updateTypeButtons(type);
+        if (t) {
+            updateCategoryDisplay('transaction-category', t.category);
+            document.getElementById('transaction-amount').value = t.amount;
+            document.getElementById('transaction-date').value = t.date;
+            document.getElementById('transaction-note').value = t.note;
+        } else {
+            resetCategoryDisplay('transaction-category');
+            document.getElementById('transaction-date').value = new Date().toISOString().split('T')[0];
+        }
+        transactionModal.classList.remove('hidden');
+        setTimeout(() => { transactionModal.classList.remove('opacity-0'); transactionModal.querySelector('.modal-content').classList.remove('-translate-y-10'); }, 10);
+    };
+    const closeModal = (modal) => {
+        modal.classList.add('opacity-0');
+        modal.querySelector('.modal-content').classList.add('-translate-y-10');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    };
+    const updateTypeButtons = (type) => {
+        const incomeBtn = document.getElementById('type-income-btn');
+        const expenseBtn = document.getElementById('type-expense-btn');
+        incomeBtn.classList.toggle('bg-green-100', type === 'income');
+        incomeBtn.classList.toggle('border-green-500', type === 'income');
+        expenseBtn.classList.toggle('bg-red-100', type === 'expense');
+        expenseBtn.classList.toggle('border-red-500', type === 'expense');
+        transactionForm.dataset.type = type;
+        populateCategoryPicker(type, 'category-grid', name => {
+            updateCategoryDisplay('transaction-category', name);
+            document.getElementById('category-picker').classList.add('hidden');
+        });
+        resetCategoryDisplay('transaction-category');
+    };
+    const populateCategoryPicker = (type, gridId, callback) => {
+        const grid = document.getElementById(gridId);
+        grid.innerHTML = '';
+        categories.filter(c => c.type === type).forEach(c => {
+            const item = document.createElement('div');
+            item.className = 'category-item cursor-pointer p-2 rounded-lg hover:bg-gray-200 flex flex-col items-center';
+            item.innerHTML = `<div class="text-2xl pointer-events-none">${c.icon}</div><div class="text-xs mt-1 pointer-events-none">${c.name}</div>`;
+            item.onclick = () => callback(c.name);
+            grid.appendChild(item);
+        });
+    };
+    const updateCategoryDisplay = (prefix, name) => {
+        const cat = categories.find(c => c.name === name);
+        if (cat) {
+            document.getElementById(`${prefix}-icon-display`).textContent = cat.icon;
+            document.getElementById(`${prefix}-name-display`).textContent = name;
+            document.getElementById(`${prefix}-name-display`).classList.remove('text-gray-500');
+            document.getElementById(`${prefix}-value`).value = name;
+        }
+    };
+    const resetCategoryDisplay = (prefix) => {
+        document.getElementById(`${prefix}-icon-display`).textContent = '';
+        const nameDisplay = document.getElementById(`${prefix}-name-display`);
+        nameDisplay.textContent = prefix === 'budget-category' ? 'Chọn hạng mục chi tiêu' : 'Chọn hạng mục';
+        nameDisplay.classList.add('text-gray-500');
+        const valueInput = document.getElementById(`${prefix}-value`);
+        if (valueInput) valueInput.value = '';
+    };
+
+    const handleEdit = (type, id) => {
+        if (type === 'transaction') {
+            const transaction = transactions.find(t => t.id == id);
+            if (transaction) openModal(transaction);
+        } else if (type === 'budget') {
+            const category = id;
+            const limit = budgets[category];
+            if (typeof limit !== 'undefined') {
+                document.getElementById('budget-form-title').textContent = "Sửa Hạn Mức";
+                updateCategoryDisplay('budget-category', category);
+                document.getElementById('budget-limit').value = limit;
+                document.getElementById('cancel-edit-budget-btn').classList.remove('hidden');
+                document.getElementById('budget-category-selector-display').style.pointerEvents = 'none';
+                document.getElementById('budget-category-selector-display').classList.add('bg-gray-200');
+            }
+        }
+    };
+
+    const handleDelete = (type, id) => {
+        itemToDelete = { type, key: id };
+        const confirmTitle = document.getElementById('confirm-title');
+        const confirmMessage = document.getElementById('confirm-message');
+        if (type === 'transaction') {
+            confirmTitle.textContent = "Xác nhận Xóa Giao Dịch";
+            confirmMessage.textContent = "Bạn có chắc chắn muốn xóa giao dịch này không? Hành động này không thể hoàn tác.";
+        } else if (type === 'budget') {
+            confirmTitle.textContent = "Xác nhận Xóa Hạn Mức";
+            confirmMessage.textContent = `Bạn có chắc chắn muốn xóa hạn mức cho "${id}" không?`;
+        }
+        confirmModal.classList.remove('hidden');
+        setTimeout(() => { confirmModal.classList.remove('opacity-0'); confirmModal.querySelector('.modal-content').classList.remove('-translate-y-10'); }, 10);
+    };
+
+    // Event Listeners
+    navItems.forEach(i => i.addEventListener('click', () => switchView(i.dataset.view)));
+    document.getElementById('prev-month-btn').addEventListener('click', () => { selectedDate.setMonth(selectedDate.getMonth() - 1); render(); });
+    document.getElementById('next-month-btn').addEventListener('click', () => { selectedDate.setMonth(selectedDate.getMonth() + 1); render(); });
+    document.getElementById('add-transaction-fab').addEventListener('click', () => openModal());
+    generateInsightsBtn.addEventListener('click', generateGeminiInsights);
+    document.getElementById('close-modal-btn').addEventListener('click', () => closeModal(transactionModal));
+    document.getElementById('type-income-btn').addEventListener('click', () => updateTypeButtons('income'));
+    document.getElementById('type-expense-btn').addEventListener('click', () => updateTypeButtons('expense'));
+    document.getElementById('category-selector-display').addEventListener('click', () => document.getElementById('category-picker').classList.toggle('hidden'));
+    document.querySelectorAll('.amount-suggestion-btn').forEach(btn => btn.addEventListener('click', () => {
+        const input = document.getElementById('transaction-amount');
+        const val = input.value;
+        const s = btn.textContent;
+        if (s === '000') input.value = val ? val + '000' : '0';
+        else input.value = (parseInt(val) || 0) + parseInt(s.replace('k','000'));
+    }));
+    transactionForm.addEventListener('submit', e => {
+        e.preventDefault();
+        const catVal = document.getElementById('transaction-category-value').value;
+        if (!catVal) { alert('Vui lòng chọn hạng mục.'); return; }
+        const newTransaction = {
+            id: editingTransactionId ? parseInt(editingTransactionId) : Date.now(),
+            type: transactionForm.dataset.type,
+            category: catVal,
+            amount: parseFloat(document.getElementById('transaction-amount').value),
+            date: document.getElementById('transaction-date').value,
+            note: document.getElementById('transaction-note').value.trim(),
+        };
+        if (editingTransactionId) {
+            transactions = transactions.map(t => t.id === newTransaction.id ? newTransaction : t);
+        } else {
+            transactions.push(newTransaction);
+        }
+        saveData();
+        render();
+        closeModal(transactionModal);
+    });
+    
+    document.querySelector('main').addEventListener('click', e => {
+        const target = e.target.closest('.edit-btn, .delete-btn');
+        if (!target) return;
+        
+        const id = target.dataset.id;
+        const type = target.dataset.type;
+
+        if (target.classList.contains('edit-btn')) {
+            handleEdit(type, id);
+        } else if (target.classList.contains('delete-btn')) {
+            handleDelete(type, id);
+        }
+    });
+    
+    document.getElementById('confirm-delete-btn').addEventListener('click', () => {
+        if (itemToDelete.type === 'transaction') {
+            transactions = transactions.filter(t => t.id !== parseInt(itemToDelete.key));
+        } else if (itemToDelete.type === 'budget') {
+            delete budgets[itemToDelete.key];
+        }
+        saveData();
+        render();
+        closeModal(confirmModal);
+    });
+    document.getElementById('cancel-delete-btn').addEventListener('click', () => closeModal(confirmModal));
+    
+    // Budget Form Specific Logic
+    const cancelEditBudgetBtn = document.getElementById('cancel-edit-budget-btn');
+    document.getElementById('budget-category-selector-display').addEventListener('click', () => document.getElementById('budget-category-picker').classList.toggle('hidden'));
+    document.querySelectorAll('.budget-amount-suggestion-btn').forEach(btn => btn.addEventListener('click', () => {
+        const input = document.getElementById('budget-limit');
+        const val = input.value;
+        const s = btn.textContent;
+        if (s === '000') input.value = val ? val + '000' : '0';
+        else if (s.includes('M')) input.value = (parseInt(val) || 0) + parseInt(s.replace('M','000000'));
+        else input.value = (parseInt(val) || 0) + parseInt(s.replace('k','000'));
+    }));
+    budgetForm.addEventListener('submit', e => {
+        e.preventDefault();
+        const cat = document.getElementById('budget-category-value').value;
+        const lim = parseFloat(document.getElementById('budget-limit').value);
+        if (!cat) { alert("Vui lòng chọn hạng mục."); return; }
+        if (lim >= 0) { // Allow 0 for resetting
+            budgets[cat] = lim;
+            saveData();
+            render();
+            budgetForm.reset();
+            resetCategoryDisplay('budget-category');
+            document.getElementById('budget-category-picker').classList.add('hidden');
+            document.getElementById('budget-form-title').textContent = "Đặt Hạn Mức Mới";
+            cancelEditBudgetBtn.classList.add('hidden');
+            document.getElementById('budget-category-selector-display').style.pointerEvents = 'auto';
+            document.getElementById('budget-category-selector-display').classList.remove('bg-gray-200');
+
+        } else {
+            alert("Vui lòng nhập số tiền hạn mức hợp lệ.");
+        }
+    });
+
+    cancelEditBudgetBtn.addEventListener('click', () => {
+        budgetForm.reset();
+        resetCategoryDisplay('budget-category');
+        document.getElementById('budget-category-picker').classList.add('hidden');
+        document.getElementById('budget-form-title').textContent = "Đặt Hạn Mức Mới";
+        cancelEditBudgetBtn.classList.add('hidden');
+        document.getElementById('budget-category-selector-display').style.pointerEvents = 'auto';
+        document.getElementById('budget-category-selector-display').classList.remove('bg-gray-200');
+    });
+
+    // INITIALIZATION
+    loadData();
+    render();
+});
+</script>
+</body>
+</html>
+
